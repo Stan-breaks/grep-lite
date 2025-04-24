@@ -1,44 +1,35 @@
-use std::usize;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
+
+use clap::Parser;
+use regex::Regex;
+
+#[derive(Parser)]
+#[command(version, about = "searches for patterns")]
+struct Args {
+    #[arg(short, long)]
+    pattern: String,
+    #[arg(short, long)]
+    filepath: String,
+}
 
 fn main() {
-    let ctx_lines = 1;
-    let needle = "oo";
-    let haystack = "\
-        Every face, every shop, 
-        bedroom window, public-house, and 
-        dark square is a picture 
-        feverishly turned--in search of what?
-        It is the same with books.
-        What do we seek 
-        through millions of pages?";
-    let mut tags: Vec<usize> = vec![];
-    let mut ctx: Vec<Vec<(usize, String)>> = vec![];
-    for (i, line) in haystack.lines().enumerate() {
-        if line.contains(needle) {
-            tags.push(i);
-            let v = Vec::with_capacity(2 * ctx_lines + 1);
-            ctx.push(v);
+    let args = Args::parse();
+    let needle = args.pattern;
+    let filepath = args.filepath;
+    let file = File::open(filepath).unwrap();
+    let reader = BufReader::new(file);
+    let re = Regex::new(&needle).unwrap();
+    let mut count = 1;
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+        let line = line.trim();
+        match re.find(&line) {
+            Some(_) => println!("{}: {}", count, line),
+            None => {}
         }
-    }
-    if tags.is_empty() {
-        return;
-    }
-    for (i, line) in haystack.lines().enumerate() {
-        for (j, tag) in tags.iter().enumerate() {
-            let lower_bound = tag.saturating_sub(ctx_lines);
-            let upper_bound = tag + ctx_lines;
-            if (i >= lower_bound) && (i <= upper_bound) {
-                let line_as_string = String::from(line);
-                let local_ctx = (i, line_as_string);
-                ctx[j].push(local_ctx);
-            }
-        }
-    }
-    for local_ctx in ctx.iter() {
-        for (i, ref line) in local_ctx.iter() {
-            let line_num = i + 1;
-            println!("{}: {}", line_num, line);
-        }
-        println!();
+        count += 1;
     }
 }
